@@ -455,6 +455,11 @@ migs:
   advanced_login: activemerchant
   advanced_password: test12345
 
+# Working credentials, no need to replace
+mkb:
+  some_credential: SOMECREDENTIAL
+  another_credential: ANOTHERCREDENTIAL
+
 modern_payments:
   login: login
   password: password
