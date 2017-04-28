@@ -187,12 +187,26 @@ module ActiveMerchant #:nodoc:
       def parse(body, action)
         case action
           when 'mpi_payment'
-            page = Nokogiri::HTML(body)
+            result = Nokogiri::HTML(body)
           when 'status'
-            
+            result = parse_status(body)
         end
 
-        page
+        result
+      end
+
+      def parse_status(body)
+        results = { }
+        xml = Nokogiri::XML(body)
+        doc = xml.xpath("//order/orderId")
+        doc.children.each do |element|
+          results[element.name.downcase.to_sym] = element.text
+        end
+        doc = xml.xpath("//order/status")
+        doc.children.each do |element|
+          results[element.name.downcase.to_sym] = element.text
+        end
+        results
       end
 
       def commit(action, parameters)
@@ -223,9 +237,10 @@ module ActiveMerchant #:nodoc:
       # end
 
       def successful?(response)
-        if response.css("title")[0]
-          response.css("title")[0].text == 'MKB payment'
-        end
+        true
+        # if response.css("title")[0]
+        #   response.css("title")[0].text == 'MKB payment'
+        # end
       end
 
       def message_from(response)
