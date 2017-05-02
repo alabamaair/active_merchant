@@ -36,8 +36,6 @@ module ActiveMerchant #:nodoc:
       def payment_page(options={})
         post = {}
         add_invoice(post, options)
-        # add_payment(post, payment)
-        # add_address(post, payment, options)
         add_customer_data(post, options)
         add_amount(post, options)
         add_return_url(post, options)
@@ -130,9 +128,6 @@ module ActiveMerchant #:nodoc:
         post[:redirect_url] = options[:return_url]
       end
 
-      # def add_address(post, creditcard, options)
-      # end
-
       def add_invoice(post, options)
         post[:mid] = options[:mid]
         post[:aid] = options[:aid]
@@ -141,24 +136,29 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_amount(post, options)
-        post[:amount] = options[:amount]
+        post[:amount] = normalize_amount(options[:amount])
+      end
+
+      # limited to 12 digits max and prefill leading zero
+      def normalize_amount(amount)
+        "%012d" % amount
       end
 
       def add_order_details(post, options)
         post[:MerID] = options[:mid]
         post[:AcqID] = options[:aid]
         post[:OrderID] = options[:oid]
-        post[:PurchaseAmt] = options[:amount]
+        post[:PurchaseAmt] = normalize_amount(options[:amount])
         post[:PurchaseCurrency] = options[:currency]
       end
 
       def add_actions_details(post, options)
         post[:AuthorizationNumber] = options[:transaction_number]
-        post[:Amount] = options[:amount]
+        post[:Amount] = normalize_amount(options[:amount])
         post[:MerRespURL] = options[:response_url]
 
         # static fields
-        post[:PurchaseCurrencyExponent] = 2
+        post[:PurchaseCurrencyExponent] = '2'
         post[:Version] = '1.0.0'
         post[:SignatureMethod] = 'SHA1'
       end
@@ -181,13 +181,12 @@ module ActiveMerchant #:nodoc:
         Base64.encode64(bin_string).strip
       end
 
-      # def add_payment(post, payment)
-      # end
-
       def parse(body, action)
         case action
           when 'mpi_payment'
             result = Nokogiri::HTML(body)
+          when 'reverse', 'capture', 'refund'
+            result = parse_actions(body)
           when 'status'
             result = parse_status(body)
         end
@@ -195,16 +194,17 @@ module ActiveMerchant #:nodoc:
         result
       end
 
+      def parse_actions(body)
+        # TODO
+        body
+      end
+
       def parse_status(body)
         results = { }
         xml = Nokogiri::XML(body)
-        doc = xml.xpath("//order/orderId")
+        doc = xml.xpath("//order")
         doc.children.each do |element|
-          results[element.name.downcase.to_sym] = element.text
-        end
-        doc = xml.xpath("//order/status")
-        doc.children.each do |element|
-          results[element.name.downcase.to_sym] = element.text
+          results[element.name.underscore.downcase.to_sym] = element.text
         end
         results
       end
@@ -222,8 +222,8 @@ module ActiveMerchant #:nodoc:
         response = parse(ssl_post(url, post_data(action, parameters)), action)
 
         Response.new(
-          successful?(response),
-          message_from(response),
+          successful?(response, action),
+          message_from(response, action, url, parameters),
           #response,
           # authorization: authorization_from(response),
           # avs_result: AVSResult.new(code: response["some_avs_response_key"]),
@@ -236,29 +236,50 @@ module ActiveMerchant #:nodoc:
       # def success_from(response)
       # end
 
-      def successful?(response)
-        true
-        # if response.css("title")[0]
-        #   response.css("title")[0].text == 'MKB payment'
-        # end
+      def successful?(response, action)
+        case action
+          when 'mpi_payment'
+            if response.css("title")[0]
+              response.css("title")[0].text == 'MKB payment'
+            end
+          when 'reverse', 'capture', 'refund'
+            true # TODO implement
+          when 'status'
+            !response[:error].present?
+        end
       end
 
-      def message_from(response)
-        if successful?(response)
-          "Success"
+      def message_from(response, action, url, parameters)
+        if successful?(response, action)
+          case action
+            when 'mpi_payment'
+              parameters.delete_if { |key, value| value.nil? }
+              { form_url: "#{url}?#{parameters.to_query}" }
+            when 'reverse', 'capture', 'refund'
+              response # TODO implement
+            when 'status'
+              response
+          end
         else
-          # TODO нормально парсить ошибки
-          errors = []
-          if response.css("h1")
-            response.css("h1").each_with_index { |e, i| errors << "Errors: #{e.text} - #{response.css("h3")[i].text}"}
-          end
 
-          if response.css("p")
-            response.css('p').each do |el|
-              errors << el.text
-            end
+          case action
+            when 'mpi_payment'
+              # TODO check
+              errors = []
+              if response.css("h1")
+                response.css("h1").each_with_index { |e, i| errors << "Errors: #{e.text} - #{response.css("h3")[i].text}"}
+              end
+              if response.css("p")
+                response.css('p').each do |el|
+                  errors << el.text
+                end
+              end
+              errors
+            when 'reverse', 'capture', 'refund'
+              # TODO implement
+            when 'status'
+              response
           end
-          errors
         end
       end
 
@@ -266,9 +287,8 @@ module ActiveMerchant #:nodoc:
       # end
 
       def post_data(action, parameters = {})
-        parameters.merge!({
-                              signature: signature(action, parameters)
-                          }).to_query
+        sign = signature(action, parameters)
+        parameters.merge!({**(%w(reverse capture refund).include?(action) ? { Signature: sign } : {signature: sign })}).to_query
       end
 
       def error_code_from(response)
