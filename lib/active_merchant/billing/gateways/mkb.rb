@@ -63,9 +63,24 @@ module ActiveMerchant #:nodoc:
 
       def reverse(options={})
         post = {}
+        #add_order_details(post, options)
+        post[:MerID] = options[:mid]
+        post[:AcqID] = options[:aid]
+        post[:PurchaseAmt] = normalize_amount(options[:amount])
+        post[:PurchaseCurrency] = options[:currency]
+        post[:PurchaseCurrencyExponent] = '2'
+        post[:OrderID] = options[:oid]
         post[:Action] = 'Reverse'
-        add_order_details(post, options)
-        add_actions_details(post, options)
+        post[:AuthorizationNumber] = options[:transaction_number]
+        post[:Amount] = normalize_amount(options[:amount])
+        post[:MerRespURL] = options[:response_url]
+
+        # static fields
+
+        post[:Version] = '1.0.0'
+        post[:SignatureMethod] = 'SHA1'
+
+        #add_actions_details(post, options)
 
         commit('reverse', post)
       end
@@ -147,9 +162,9 @@ module ActiveMerchant #:nodoc:
       def add_order_details(post, options)
         post[:MerID] = options[:mid]
         post[:AcqID] = options[:aid]
-        post[:OrderID] = options[:oid]
         post[:PurchaseAmt] = normalize_amount(options[:amount])
         post[:PurchaseCurrency] = options[:currency]
+        post[:OrderID] = options[:oid]
       end
 
       def add_actions_details(post, options)
@@ -171,11 +186,15 @@ module ActiveMerchant #:nodoc:
           :currency
       ]
 
+      # TODO переписать для actions
       def signature(action, post)
         string_sign = @options[:password]
+        puts "#{string_sign}"
+        puts "POST #{post}"
         if %w(mpi_payment reverse capture refund).include?(action)
           string_sign += SIGN_FIELDS.map {|key| post[key.to_sym]} * ""
         end
+        puts "#{string_sign}"
         hex_string = Digest::SHA1.hexdigest(string_sign)
         bin_string = hex_string.scan(/../).map { |x| x.hex.chr }.join
         Base64.encode64(bin_string).strip
@@ -218,6 +237,8 @@ module ActiveMerchant #:nodoc:
           when 'status'
             url = (test? ? status_test_url : status_live_url)
         end
+
+        puts "#{parameters}"
 
         response = parse(ssl_post(url, post_data(action, parameters)), action)
 
@@ -288,13 +309,22 @@ module ActiveMerchant #:nodoc:
 
       def post_data(action, parameters = {})
         sign = signature(action, parameters)
-        parameters.merge!({**(%w(reverse capture refund).include?(action) ? { Signature: sign } : {signature: sign })}).to_query
+        puts "SIGN #{sign}"
+        mkb_to_query(parameters.merge!({**(%w(reverse capture refund).include?(action) ? { Signature: sign } : {signature: sign })}))
       end
 
       def error_code_from(response)
         unless success_from(response)
           # TODO: lookup error code for this response
         end
+      end
+
+      def mkb_to_query(params)
+        params.collect do |key, value|
+          unless (value.is_a?(Hash) || value.is_a?(Array)) && value.empty?
+            value.to_query(key)
+          end
+        end.compact * '&'
       end
     end
   end

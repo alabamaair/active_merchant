@@ -32,6 +32,7 @@ module ActiveMerchant #:nodoc:
     end
 
     def ssl_post(endpoint, data, headers = {})
+      puts "DEBUGG #{data}"
       ssl_request(:post, endpoint, data, headers)
     end
 

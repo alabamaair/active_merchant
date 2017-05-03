@@ -103,7 +103,7 @@ module ActiveMerchant
     end
 
     def configure_debugging(http)
-      http.set_debug_output(wiredump_device)
+      http.set_debug_output(STDOUT)
     end
 
     def configure_timeouts(http)
