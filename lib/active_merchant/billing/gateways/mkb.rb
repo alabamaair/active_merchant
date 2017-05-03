@@ -33,7 +33,7 @@ module ActiveMerchant #:nodoc:
         super
       end
 
-      def payment_page(options={})
+      def make_order(options={})
         post = {}
         add_invoice(post, options)
         add_customer_data(post, options)
@@ -129,10 +129,10 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_invoice(post, options)
-        post[:mid] = options[:mid]
-        post[:aid] = options[:aid]
-        post[:oid] = options[:oid]
-        post[:currency] = options[:currency]
+        post[:mid] = options[:mkb_mid]
+        post[:aid] = options[:mkb_aid]
+        post[:oid] = options[:order_number]
+        post[:currency] = self.default_currency
       end
 
       def add_amount(post, options)
