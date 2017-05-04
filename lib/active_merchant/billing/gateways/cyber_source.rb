@@ -27,7 +27,7 @@ module ActiveMerchant #:nodoc:
       XSD_VERSION = "1.121"
 
       self.supported_cardtypes = [:visa, :master, :american_express, :discover]
-      self.supported_countries = %w(US BR CA CN DK FI FR DE JP MX NO SE GB SG)
+      self.supported_countries = %w(US BR CA CN DK FI FR DE JP MX NO SE GB SG LB)
 
       self.default_currency = 'USD'
       self.currencies_without_fractions = %w(JPY)
@@ -474,7 +474,7 @@ module ActiveMerchant #:nodoc:
 
       def add_mdd_fields(xml, options)
         xml.tag! 'merchantDefinedData' do
-          (1..20).each do |each|
+          (1..100).each do |each|
             key = "mdd_field_#{each}".to_sym
             xml.tag!("field#{each}", options[key]) if options[key]
           end
@@ -653,7 +653,7 @@ module ActiveMerchant #:nodoc:
 
       def lookup_country_code(country_field)
         country_code = Country.find(country_field) rescue nil
-        country_code.code(:alpha2)
+        country_code.code(:alpha2) if country_code
       end
 
       # Where we actually build the full SOAP request using builder
@@ -686,6 +686,8 @@ module ActiveMerchant #:nodoc:
           response = parse(ssl_post(test? ? self.test_url : self.live_url, build_request(request, options)))
         rescue ResponseError => e
           response = parse(e.response.body)
+        rescue REXML::ParseException => e
+          response = { message: e.to_s }
         end
 
         success = response[:decision] == "ACCEPT"

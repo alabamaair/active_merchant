@@ -21,7 +21,7 @@ module ActiveMerchant #:nodoc:
         'unchecked' => 'P'
       }
 
-      self.supported_countries = %w(AT AU BE CA CH DE DK ES FI FR GB IE IT LU NL NO SE SG US)
+      self.supported_countries = %w(AT AU BE BR CA CH DE DK ES FI FR GB HK IE IT JP LU MX NL NO NZ PT SE SG US)
       self.default_currency = 'USD'
       self.money_format = :cents
       self.supported_cardtypes = [:visa, :master, :american_express, :discover, :jcb, :diners_club, :maestro]
@@ -51,11 +51,26 @@ module ActiveMerchant #:nodoc:
         "business" => "company",
       }
 
+      MINIMUM_AUTHORIZE_AMOUNTS = {
+        "USD" => 100,
+        "CAD" => 100,
+        "GBP" => 60,
+        "EUR" => 100,
+        "DKK" => 500,
+        "NOK" => 600,
+        "SEK" => 600,
+        "CHF" => 100,
+        "AUD" => 100,
+        "JPY" => 100,
+        "MXN" => 2000,
+        "SGD" => 100,
+        "HKD" => 800
+      }
+
       def initialize(options = {})
         requires!(options, :login)
         @api_key = options[:login]
         @fee_refund_api_key = options[:fee_refund_login]
-
         super
       end
 
@@ -142,7 +157,8 @@ module ActiveMerchant #:nodoc:
 
       def verify(payment, options = {})
         MultiResponse.run(:use_first_response) do |r|
-          r.process { authorize(50, payment, options) }
+          r.process { authorize(auth_minimum_amount(options), payment, options) }
+          options[:idempotency_key] = nil
           r.process(:ignore_result) { void(r.authorization, options) }
         end
       end
@@ -255,13 +271,15 @@ module ActiveMerchant #:nodoc:
       def scrub(transcript)
         transcript.
           gsub(%r((Authorization: Basic )\w+), '\1[FILTERED]').
-          gsub(%r((card\[number\]=)\d+), '\1[FILTERED]').
-          gsub(%r((card\[cvc\]=)\d+), '\1[FILTERED]').
           gsub(%r((&?three_d_secure\[cryptogram\]=)[\w=]*(&?)), '\1[FILTERED]\2').
-          gsub(%r((card\[swipe_data\]=)[^&]+(&?)), '\1[FILTERED]\2').
+          gsub(%r((card\[cryptogram\]=)[^&]+(&?)), '\1[FILTERED]\2').
+          gsub(%r((card\[cvc\]=)\d+), '\1[FILTERED]').
+          gsub(%r((card\[emv_approval_data\]=)[^&]+(&?)), '\1[FILTERED]\2').
+          gsub(%r((card\[emv_auth_data\]=)[^&]+(&?)), '\1[FILTERED]\2').
           gsub(%r((card\[encrypted_pin\]=)[^&]+(&?)), '\1[FILTERED]\2').
           gsub(%r((card\[encrypted_pin_key_id\]=)[\w=]+(&?)), '\1[FILTERED]\2').
-          gsub(%r((card\[emv_auth_data\]=)[^&]+(&?)), '\1[FILTERED]\2')
+          gsub(%r((card\[number\]=)\d+), '\1[FILTERED]').
+          gsub(%r((card\[swipe_data\]=)[^&]+(&?)), '\1[FILTERED]\2')
       end
 
       def supports_network_tokenization?
@@ -362,7 +380,7 @@ module ActiveMerchant #:nodoc:
             card[:swipe_data] = creditcard.track_data
             card[:fallback_reason] = creditcard.fallback_reason if creditcard.fallback_reason
             card[:read_method] = "contactless" if creditcard.contactless_emv
-            post[:read_method] = "contactless_magstripe_mode" if creditcard.contactless_magstripe
+            card[:read_method] = "contactless_magstripe_mode" if creditcard.contactless_magstripe
           else
             card[:number] = creditcard.number
             card[:exp_month] = creditcard.month
@@ -373,7 +391,7 @@ module ActiveMerchant #:nodoc:
 
           if creditcard.is_a?(NetworkTokenizationCreditCard)
             card[:cryptogram] = creditcard.payment_cryptogram
-            card[:eci] = creditcard.eci
+            card[:eci] = creditcard.eci.rjust(2, '0') if creditcard.eci =~ /^[0-9]+$/
             card[:tokenization_method] = creditcard.source.to_s
           end
           post[:card] = card
@@ -457,12 +475,17 @@ module ActiveMerchant #:nodoc:
           "Authorization" => "Basic " + Base64.encode64(key.to_s + ":").strip,
           "User-Agent" => "Stripe/v1 ActiveMerchantBindings/#{ActiveMerchant::VERSION}",
           "Stripe-Version" => api_version(options),
-          "X-Stripe-Client-User-Agent" => user_agent,
+          "X-Stripe-Client-User-Agent" => stripe_client_user_agent(options),
           "X-Stripe-Client-User-Metadata" => {:ip => options[:ip]}.to_json
         }
         headers.merge!("Idempotency-Key" => idempotency_key) if idempotency_key
         headers.merge!("Stripe-Account" => options[:stripe_account]) if options[:stripe_account]
         headers
+      end
+
+      def stripe_client_user_agent(options)
+        return user_agent unless options[:application]
+        JSON.dump(JSON.parse(user_agent).merge!({application: options[:application]}))
       end
 
       def api_version(options)
@@ -599,6 +622,11 @@ module ActiveMerchant #:nodoc:
         else
           card_brand(payment_method) == "check"
         end
+      end
+
+      def auth_minimum_amount(options)
+        return 100 unless options[:currency]
+        return MINIMUM_AUTHORIZE_AMOUNTS[options[:currency].upcase] || 100
       end
     end
   end

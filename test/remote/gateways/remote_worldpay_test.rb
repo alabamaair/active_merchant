@@ -18,9 +18,22 @@ class RemoteWorldpayTest < Test::Unit::TestCase
     assert_equal 'SUCCESS', response.message
   end
 
+  def test_successful_purchase_with_hcg_additional_data
+    @options.merge!(hcg_additional_data: {
+      key1: "value1",
+      key2: "value2",
+      key3: "value3"
+    })
+
+    assert response = @gateway.purchase(@amount, @credit_card, @options)
+    assert_success response
+    assert_equal 'SUCCESS', response.message
+  end
+
   def test_failed_purchase
     assert response = @gateway.purchase(@amount, @declined_card, @options)
     assert_failure response
+    assert_equal '5', response.error_code
     assert_equal 'REFUSED', response.message
   end
 
@@ -72,6 +85,14 @@ class RemoteWorldpayTest < Test::Unit::TestCase
     assert_success @gateway.authorize(@amount, @credit_card, @options.merge(:billing_address => address))
   end
 
+  def test_partial_address
+    billing_address = address
+    billing_address.delete(:address1)
+    billing_address.delete(:zip)
+    billing_address.delete(:country)
+    assert_success @gateway.authorize(@amount, @credit_card, @options.merge(:billing_address => billing_address))
+  end
+
   def test_ip_address
     assert_success @gateway.authorize(@amount, @credit_card, @options.merge(ip: "192.18.123.12"))
   end
@@ -98,7 +119,7 @@ class RemoteWorldpayTest < Test::Unit::TestCase
   def test_authorize_nonfractional_currency
     assert_success(result = @gateway.authorize(1234, @credit_card, @options.merge(:currency => 'IDR')))
     assert_equal "IDR", result.params['amount_currency_code']
-    assert_equal "1234", result.params['amount_value']
+    assert_equal "12", result.params['amount_value']
     assert_equal "0", result.params['amount_exponent']
   end
 

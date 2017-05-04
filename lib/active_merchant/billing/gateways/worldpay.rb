@@ -60,10 +60,15 @@ module ActiveMerchant #:nodoc:
       end
 
       def refund(money, authorization, options = {})
-        MultiResponse.run do |r|
-          r.process{inquire_request(authorization, options, "CAPTURED", "SETTLED", "SETTLED_BY_MERCHANT")}
-          r.process{refund_request(money, authorization, options)}
+        response = MultiResponse.run do |r|
+          r.process { inquire_request(authorization, options, "CAPTURED", "SETTLED", "SETTLED_BY_MERCHANT") }
+          r.process { refund_request(money, authorization, options) }
         end
+
+        return response if response.success?
+        return response unless options[:force_full_refund_if_unsettled]
+
+        void(authorization, options ) if response.params["last_event"] == "AUTHORISED"
       end
 
       def verify(credit_card, options={})
@@ -147,6 +152,9 @@ module ActiveMerchant #:nodoc:
               end
               add_payment_method(xml, money, payment_method, options)
               add_email(xml, options)
+              if options[:hcg_additional_data]
+                add_hcg_additional_data(xml, options)
+              end
             end
           end
         end
@@ -184,7 +192,7 @@ module ActiveMerchant #:nodoc:
         currency = options[:currency] || currency(money)
 
         amount_hash = {
-          :value => amount(money),
+          :value => localized_amount(money, currency),
           'currencyCode' => currency,
           'exponent' => non_fractional_currency?(currency) ? 0 : 2
         }
@@ -220,8 +228,11 @@ module ActiveMerchant #:nodoc:
 
               add_address(xml, (options[:billing_address] || options[:address]))
             end
-            if options[:ip]
-              xml.tag! 'session', 'shopperIPAddress' => options[:ip]
+            if options[:ip] && options[:session_id]
+              xml.tag! 'session', 'shopperIPAddress' => options[:ip], 'id' => options[:session_id]
+            else
+              xml.tag! 'session', 'shopperIPAddress' => options[:ip] if options[:ip]
+              xml.tag! 'session', 'id' => options[:session_id] if options[:session_id]
             end
           end
         end
@@ -235,6 +246,8 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_address(xml, address)
+        return unless address
+
         address = address_with_defaults(address)
 
         xml.tag! 'cardAddress' do
@@ -250,6 +263,14 @@ module ActiveMerchant #:nodoc:
             xml.tag! 'state', address[:state]
             xml.tag! 'countryCode', address[:country]
             xml.tag! 'telephoneNumber', address[:phone] if address[:phone]
+          end
+        end
+      end
+
+      def add_hcg_additional_data(xml, options)
+        xml.tag! 'hcgAdditionalData' do
+          options[:hcg_additional_data].each do |k, v|
+            xml.tag! "param", {name: k.to_s}, v
           end
         end
       end
@@ -297,6 +318,7 @@ module ActiveMerchant #:nodoc:
           message,
           raw,
           :authorization => authorization_from(raw),
+          :error_code => error_code_from(success, raw),
           :test => test?)
 
       rescue ActiveMerchant::ResponseError => e
@@ -324,6 +346,12 @@ module ActiveMerchant #:nodoc:
         end
 
         [ success, message ]
+      end
+
+      def error_code_from(success, raw)
+        unless success == "SUCCESS"
+          raw[:iso8583_return_code_code] || raw[:error_code] || nil
+        end
       end
 
       def required_status_message(raw, success_criteria)
