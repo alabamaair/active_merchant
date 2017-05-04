@@ -23,9 +23,9 @@ module ActiveMerchant #:nodoc:
       self.default_currency = '643'
 
       STANDARD_ERROR_CODE_MAPPING = {
-          '0' => 'Approved',
-          '1' => 'Disapproved',
-          '2' => 'Error'
+          '1' => 'Approved',
+          '2' => 'Disapproved',
+          '3' => 'Error'
       }
 
       def initialize(options={})
@@ -75,8 +75,8 @@ module ActiveMerchant #:nodoc:
         post[:login] = options[:login]
         post[:password] = options[:password]
         post[:Status] = 'Short'
-        post[:MerID] = options[:mid]
-        post[:OrderID] = options[:oid]
+        post[:MerID] = options[:mkb_mid]
+        post[:OrderID] = options[:order_number]
 
         commit('status', post)
       end
@@ -145,17 +145,17 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_order_details(post, options)
-        post[:MerID] = options[:mid]
-        post[:AcqID] = options[:aid]
-        post[:OrderID] = options[:oid]
+        post[:MerID] = options[:mkb_mid]
+        post[:AcqID] = options[:mkb_aid]
+        post[:OrderID] = options[:order_number]
         post[:PurchaseAmt] = normalize_amount(options[:amount])
-        post[:PurchaseCurrency] = options[:currency]
+        post[:PurchaseCurrency] = self.default_currency
       end
 
       def add_actions_details(post, options)
-        post[:AuthorizationNumber] = options[:transaction_number]
+        post[:AuthorizationNumber] = options[:external_order_id]
         post[:Amount] = normalize_amount(options[:amount])
-        post[:MerRespURL] = options[:response_url]
+        post[:MerRespURL] = options[:return_url]
 
         # static fields
         post[:PurchaseCurrencyExponent] = '2'
@@ -171,9 +171,19 @@ module ActiveMerchant #:nodoc:
           :currency
       ]
 
+      SIGN_FIELDS_ACTIONS = [
+          :MerID,
+          :AcqID,
+          :OrderID,
+          :PurchaseAmt,
+          :PurchaseCurrency
+      ]
+
       def signature(action, post)
         string_sign = @options[:password]
-        if %w(mpi_payment reverse capture refund).include?(action)
+        if %w(reverse capture refund).include?(action)
+          string_sign += SIGN_FIELDS_ACTIONS.map {|key| post[key.to_sym]} * ""
+        else
           string_sign += SIGN_FIELDS.map {|key| post[key.to_sym]} * ""
         end
         hex_string = Digest::SHA1.hexdigest(string_sign)
@@ -195,8 +205,9 @@ module ActiveMerchant #:nodoc:
       end
 
       def parse_actions(body)
-        # TODO
-        body
+        result = CGI::parse(body)
+        result.map { |key, value| result[key] = value.join('') }
+        result
       end
 
       def parse_status(body)
@@ -242,8 +253,10 @@ module ActiveMerchant #:nodoc:
             if response.css("title")[0]
               response.css("title")[0].text == 'MKB payment'
             end
-          when 'reverse', 'capture', 'refund'
-            true # TODO implement
+          when 'reverse', 'refund'
+            response['ResponseCode'] == '1' && response['ReasonCode'] == '1'
+          when 'capture'
+            response['ResponseCode'] == '1' && response['ReasonCode'] == '17'
           when 'status'
             !response[:error].present?
         end
@@ -256,7 +269,7 @@ module ActiveMerchant #:nodoc:
               parameters.delete_if { |key, value| value.nil? }
               { form_url: "#{url}?#{parameters.to_query}" }
             when 'reverse', 'capture', 'refund'
-              response # TODO implement
+              response
             when 'status'
               response
           end
@@ -264,7 +277,6 @@ module ActiveMerchant #:nodoc:
 
           case action
             when 'mpi_payment'
-              # TODO check
               errors = []
               if response.css("h1")
                 response.css("h1").each_with_index { |e, i| errors << "Errors: #{e.text} - #{response.css("h3")[i].text}"}
@@ -276,7 +288,7 @@ module ActiveMerchant #:nodoc:
               end
               errors
             when 'reverse', 'capture', 'refund'
-              # TODO implement
+              response
             when 'status'
               response
           end
