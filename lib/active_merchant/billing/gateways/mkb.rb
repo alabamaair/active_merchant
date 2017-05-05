@@ -70,7 +70,7 @@ module ActiveMerchant #:nodoc:
         commit('reverse', post)
       end
 
-      def status(options={})
+      def get_order_status(options={})
         post = {}
         post[:login] = options[:login]
         post[:password] = options[:password]
@@ -126,6 +126,7 @@ module ActiveMerchant #:nodoc:
 
       def add_return_url(post, options)
         post[:redirect_url] = options[:return_url]
+        post[:directposturl] = options[:directposturl]
       end
 
       def add_invoice(post, options)
