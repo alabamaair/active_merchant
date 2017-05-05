@@ -72,8 +72,8 @@ module ActiveMerchant #:nodoc:
 
       def get_order_status(options={})
         post = {}
-        post[:login] = options[:login]
-        post[:password] = options[:password]
+        post[:login] = options[:login_status]
+        post[:password] = options[:password_status]
         post[:Status] = 'Short'
         post[:MerID] = options[:mkb_mid]
         post[:OrderID] = options[:order_number]
