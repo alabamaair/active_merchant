@@ -9,7 +9,7 @@ module ActiveMerchant #:nodoc:
       self.ssl_strict          = false
       self.supported_cardtypes = [:visa, :master]
       self.supported_countries = ['RU']
-      self.test_url            = 'https://test.paymentgate.ru/testpayment/rest'
+      self.test_url            = 'https://web.rbsuat.com/ab/rest'
 
       STATUSES_HASH = {
           '0' => 'Order registered but not paid',
