@@ -6,13 +6,18 @@ module ActiveMerchant #:nodoc:
       class_attribute :payment_test_url, :payment_live_url, :action_test_url, :action_live_url, :status_test_url, :status_live_url
 
       self.payment_test_url = 'https://mpi.mkb.ru:9443/MPI_payment/'
-      self.payment_live_url = 'https://mpi.mkb.ru/MPI_payment/'
+      #self.payment_live_url = 'https://mpi.mkb.ru/MPI_payment/'
+      self.payment_live_url = 'https://mpi.mkb.ru:9443/MPI_payment/'
 
       self.action_test_url = 'https://ts-ecomweb-test.mcb.ru/SENTRY/PaymentGateway/Application/FinancialProcessing.aspx'
-      self.action_live_url = 'https://ts-ecomweb.mcb.ru/SENTRY/PaymentGateway/Application/FinancialProcessing.aspx'
+      #self.action_live_url = 'https://ts-ecomweb.mcb.ru/SENTRY/PaymentGateway/Application/FinancialProcessing.aspx'
+      self.action_live_url = 'https://ts-ecomweb-test.mcb.ru/SENTRY/PaymentGateway/Application/FinancialProcessing.aspx'
+
 
       self.status_test_url = 'https://mpi.mkb.ru:9443/finoperate/dogetorderstatusservlet'
-      self.status_live_url = 'https://mpi.mkb.ru:8443/finoperate/dogetorderstatusservlet'
+      #self.status_live_url = 'https://mpi.mkb.ru:8443/finoperate/dogetorderstatusservlet'
+      self.status_live_url = 'https://mpi.mkb.ru:9443/finoperate/dogetorderstatusservlet'
+
 
       self.display_name = 'CREDIT BANK OF MOSCOW'
       self.homepage_url = 'http://mkb.ru/'
