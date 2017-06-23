@@ -5,19 +5,14 @@ module ActiveMerchant #:nodoc:
     class MkbGateway < Gateway
       class_attribute :payment_test_url, :payment_live_url, :action_test_url, :action_live_url, :status_test_url, :status_live_url
 
-      self.payment_test_url = 'https://mpi.mkb.ru:9443/MPI_payment/'
-      #self.payment_live_url = 'https://mpi.mkb.ru/MPI_payment/'
-      self.payment_live_url = 'https://mpi.mkb.ru:9443/MPI_payment/'
+      self.test_url = 'https://mpi.mkb.ru:9443/MPI_payment/'
+      self.live_url = 'https://mpi.mkb.ru/MPI_payment/'
 
       self.action_test_url = 'https://ts-ecomweb-test.mcb.ru/SENTRY/PaymentGateway/Application/FinancialProcessing.aspx'
-      #self.action_live_url = 'https://ts-ecomweb.mcb.ru/SENTRY/PaymentGateway/Application/FinancialProcessing.aspx'
-      self.action_live_url = 'https://ts-ecomweb-test.mcb.ru/SENTRY/PaymentGateway/Application/FinancialProcessing.aspx'
-
+      self.action_live_url = 'https://ts-ecomweb.mcb.ru/SENTRY/PaymentGateway/Application/FinancialProcessing.aspx'
 
       self.status_test_url = 'https://mpi.mkb.ru:9443/finoperate/dogetorderstatusservlet'
-      #self.status_live_url = 'https://mpi.mkb.ru:8443/finoperate/dogetorderstatusservlet'
-      self.status_live_url = 'https://mpi.mkb.ru:9443/finoperate/dogetorderstatusservlet'
-
+      self.status_live_url = 'https://mpi.mkb.ru:8443/finoperate/dogetorderstatusservlet'
 
       self.display_name = 'CREDIT BANK OF MOSCOW'
       self.homepage_url = 'http://mkb.ru/'
@@ -35,6 +30,12 @@ module ActiveMerchant #:nodoc:
 
       def initialize(options={})
         requires!(options, :password)
+        @test_url = options[:test_url] if options[:test_url]
+        @live_url = options[:live_url] if options[:live_url]
+        @action_test_url = options[:action_test_url] if options[:action_test_url]
+        @action_live_url = options[:action_live_url] if options[:action_live_url]
+        @status_test_url = options[:status_test_url] if options[:status_test_url]
+        @status_test_url = options[:status_live_url] if options[:status_live_url]
         super
       end
 
@@ -126,7 +127,7 @@ module ActiveMerchant #:nodoc:
       private
 
       def add_customer_data(post, options)
-        post[:client_email] = options[:email]
+        post[:client_mail] = options[:email]
       end
 
       def add_return_url(post, options)
@@ -229,7 +230,7 @@ module ActiveMerchant #:nodoc:
       def commit(action, parameters)
         case action
           when 'mpi_payment'
-            url = (test? ? payment_test_url : payment_live_url)
+            url = (test? ? test_url : live_url)
           when 'reverse', 'capture', 'refund'
             url = (test? ? action_test_url : action_live_url)
           when 'status'

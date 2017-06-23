@@ -9,7 +9,7 @@ module ActiveMerchant #:nodoc:
       self.ssl_strict          = false
       self.supported_cardtypes = [:visa, :master]
       self.supported_countries = ['RU']
-      self.test_url            = 'https://test.paymentgate.ru/testpayment/rest'
+      self.test_url            = 'https://web.rbsuat.com/ab/rest'
 
       STATUSES_HASH = {
           '0' => 'Order registered but not paid',
@@ -32,6 +32,8 @@ module ActiveMerchant #:nodoc:
       # * <tt>:secret</tt> -- The Alfabank API secret (REQUIRED)
       def initialize(options = {})
         requires!(options, :account, :secret)
+        @test_url = options[:test_url] if options[:test_url]
+        @live_url = options[:live_url] if options[:live_url]
         super
       end
 
