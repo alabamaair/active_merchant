@@ -17,7 +17,6 @@ module ActiveMerchant #:nodoc:
       self.display_name = 'CREDIT BANK OF MOSCOW'
       self.homepage_url = 'http://mkb.ru/'
       self.money_format = :cents
-      #self.ssl_strict = false
       self.supported_cardtypes = [:visa, :master]
       self.supported_countries = ['RU']
       self.default_currency = '643'
@@ -35,7 +34,7 @@ module ActiveMerchant #:nodoc:
         @action_test_url = options[:action_test_url] if options[:action_test_url]
         @action_live_url = options[:action_live_url] if options[:action_live_url]
         @status_test_url = options[:status_test_url] if options[:status_test_url]
-        @status_test_url = options[:status_live_url] if options[:status_live_url]
+        @status_live_url = options[:status_live_url] if options[:status_live_url]
         super
       end
 
@@ -86,43 +85,6 @@ module ActiveMerchant #:nodoc:
 
         commit('status', post)
       end
-
-      # def authorize(money, payment, options={})
-      #   post = {}
-      #   add_invoice(post, money, options)
-      #   add_payment(post, payment)
-      #   add_address(post, payment, options)
-      #   add_customer_data(post, options)
-      #
-      #   commit('authonly', post)
-      # end
-
-      # def capture(money, authorization, options={})
-      #   commit('capture', post)
-      # end
-      #
-      # def refund(money, authorization, options={})
-      #   commit('refund', post)
-      # end
-
-      # def void(authorization, options={})
-      #   commit('void', post)
-      # end
-      #
-      # def verify(credit_card, options={})
-      #   MultiResponse.run(:use_first_response) do |r|
-      #     r.process { authorize(100, credit_card, options) }
-      #     r.process(:ignore_result) { void(r.authorization, options) }
-      #   end
-      # end
-      #
-      # def supports_scrubbing?
-      #   true
-      # end
-      #
-      # def scrub(transcript)
-      #   transcript
-      # end
 
       private
 
@@ -301,9 +263,6 @@ module ActiveMerchant #:nodoc:
           end
         end
       end
-
-      # def authorization_from(response)
-      # end
 
       def post_data(action, parameters = {})
         sign = signature(action, parameters)
