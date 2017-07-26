@@ -17,6 +17,7 @@ module ActiveMerchant #:nodoc:
       self.display_name = 'CREDIT BANK OF MOSCOW'
       self.homepage_url = 'http://mkb.ru/'
       self.money_format = :cents
+      self.ssl_strict = false
       self.supported_cardtypes = [:visa, :master]
       self.supported_countries = ['RU']
       self.default_currency = '643'
