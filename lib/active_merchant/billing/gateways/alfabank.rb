@@ -54,7 +54,7 @@ module ActiveMerchant #:nodoc:
         commit('getOrderStatusExtended', nil, post)
       end
 
-      def refund_order(options = {})
+      def refund(options = {})
         post = {}
         add_order_id(post, options)
         add_amount(post, options)
