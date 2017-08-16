@@ -123,7 +123,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_actions_details(post, options)
-        post[:AuthorizationNumber] = options[:external_order_id]
+        post[:AuthorizationNumber] = options[:order_id]
         post[:Amount] = normalize_amount(options[:amount])
         post[:MerRespURL] = options[:return_url]
 
