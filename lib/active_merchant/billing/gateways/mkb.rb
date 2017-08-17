@@ -81,6 +81,7 @@ module ActiveMerchant #:nodoc:
         post[:login] = options[:login_status]
         post[:password] = options[:password_status]
         post[:Status] = 'Full'
+        post[:Type] = 'Purchase'
         post[:MerID] = options[:mkb_mid]
         post[:OrderID] = options[:order_number]
 
