@@ -81,14 +81,14 @@ module ActiveMerchant #:nodoc:
 
       def add_invoice(xml, options)
         xml.OrderType_ 'Purchase'
-        xml.Merchant_ options[:merchant_id]
+        xml.Merchant_ options[:abr_merchant]
         xml.Amount_ amount(options[:amount])
         xml.Currency_ options[:currency] || currency(options[:amount])
         xml.Description_ options[:description]
       end
 
       def add_order_details(xml, options)
-        xml.Merchant_ options[:merchant_id]
+        xml.Merchant_ options[:abr_merchant]
         xml.OrderID_ options[:order_id]
       end
 
