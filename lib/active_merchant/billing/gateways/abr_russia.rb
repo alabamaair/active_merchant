@@ -44,9 +44,15 @@ module ActiveMerchant #:nodoc:
       end
 
       def reverse(options={})
+        commit('Reverse', options) do |xml|
+          add_order_details(xml, options)
+        end
       end
 
       def refund(options={})
+        commit('Refund', options) do |xml|
+          add_order_details(xml, options)
+        end
       end
 
       def get_order_status(options={})
@@ -68,6 +74,17 @@ module ActiveMerchant #:nodoc:
                 yield xml
               end
               xml.SessionID_ options[:session_id]
+              if action == 'Reverse'
+                xml.Amount_ amount(options[:amount])
+                xml.Description_ options[:description]
+              end
+              xml.TranID options[:tran_id]
+              if action == 'Refund'
+                xml.Refund do
+                  xml.Amount_ amount(options[:amount])
+                  xml.Currency_ options[:currency] || currency(options[:amount])
+                end
+              end
             end
           end
         end.to_xml
