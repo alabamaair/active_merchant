@@ -6,7 +6,7 @@ module ActiveMerchant #:nodoc:
       class_attribute :payment_test_url, :payment_live_url, :action_test_url, :action_live_url, :status_test_url, :status_live_url
 
       self.test_url = 'https://mpi.mkb.ru:9443/MPI_payment/'
-      self.live_url = 'https://mpi.mkb.ru/MPI_payment/'
+      self.live_url = 'https://mpi.mkb.ru:8443/MPI_payment/'
 
       self.action_test_url = 'https://mpi.mkb.ru:9443/finoperate/dofinancialoperationservlet'
       self.action_live_url = 'https://mpi.mkb.ru:8443/finoperate/dofinancialoperationservlet'
@@ -275,6 +275,16 @@ module ActiveMerchant #:nodoc:
         unless success_from(response)
           # TODO: lookup error code for this response
         end
+      end
+
+      def handle_response(response)
+        if (200...300).include?(response.code.to_i)
+          return response.body
+        elsif 302 == response.code.to_i
+          url = (test? ? test_url : live_url)
+          return ssl_get(URI.parse("#{url}#{response['location']}"))
+        end
+        raise ResponseError.new(response)
       end
     end
   end
