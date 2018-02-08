@@ -7,8 +7,7 @@ module ActiveMerchant #:nodoc:
       self.display_name = 'Bank Russia'
       self.homepage_url = 'http://www.abr.ru/'
       self.test_url = 'https://pgtest.abr.ru:4443/exec'
-      # TODO вставить живые данные
-      self.live_url = 'https://example.com/live'
+      self.live_url = 'https://pg.abr.ru:4443/exec'
       self.money_format = :cents
       self.ssl_strict = true
       self.supported_cardtypes = [:visa, :master]
@@ -27,6 +26,8 @@ module ActiveMerchant #:nodoc:
 
       def initialize(options={})
         requires!(options, :pem)
+        @test_url = options[:test_url] if options[:test_url]
+        @live_url = options[:live_url] if options[:live_url]
         super
       end
 
